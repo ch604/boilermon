@@ -2,7 +2,7 @@
 ESP32 sketch for remotely monitoring hot water boiler
 
 ## Background
-I was frustrated by the cost of the Lochinvar CON-X-US module and installation/setup for a boiler at a remote building, and figured that I only needed to know some basic information about the state of the system rather than get complete electronic control.
+After a boiler lockout because of a frozen air intake and an ice cold building, I started doing my research on temperature alerts so this didn't happen again. I was frustrated by the cost of the Lochinvar CON-X-US module and installation/setup for a boiler at a remote building, and figured that I only needed to know some basic information about the state of the system rather than get complete electronic control.
 
 The output screen of my boiler tells me certain system temperatures and the pump status. I figured I could get the same details unintrusively, as well as zone-specific information that the boiler doesn't know about.
 
