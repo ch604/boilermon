@@ -1,0 +1,18 @@
+ADC0/GPIO36 - boiler pump CT
+ADC3/GPIO39 - circulator pump CT
+ADC6/GPIO34 - DHW pump CT
+
+GPIO32 - zone 1 optocoupler
+GPIO33 - zone 2 optocoupler
+GPIO25 - zone 3 optocoupler
+GPIO26 - zone 4 optocoupler
+
+GPIO13 - DHW tank temp sensor
+GPIO9 - boiler inlet temp sensor
+GPIO10 - boiler outlet/loop temp sensor
+GPIO11 - room ambient temp sensor
+GPIO12 - intake (outdoor ambient) temp sensor
+GPIO14 - exhaust temp sensor
+
+SDA/GPIO21 - LCD SDA
+SCL/GPIO22 - LCD SCL
