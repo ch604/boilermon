@@ -8,11 +8,11 @@ GPIO25 - zone 3 optocoupler
 GPIO26 - zone 4 optocoupler
 
 GPIO13 - DHW tank temp sensor
-GPIO9 - boiler inlet temp sensor
-GPIO10 - boiler outlet/loop temp sensor
-GPIO11 - room ambient temp sensor
-GPIO12 - intake (outdoor ambient) temp sensor
-GPIO14 - exhaust temp sensor
+	 boiler inlet temp sensor
+	 boiler outlet/loop temp sensor
+	 room ambient temp sensor
+	 intake (outdoor ambient) temp sensor
+	 exhaust temp sensor
 
 SDA/GPIO21 - LCD SDA
 SCL/GPIO22 - LCD SCL
