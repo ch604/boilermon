@@ -10,6 +10,7 @@
 // network
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <ArduinoJson.h>
 
 // time
 #include "time.h"
@@ -20,16 +21,12 @@ const int zone1Pin = 32;
 const int zone2Pin = 33;
 const int zone3Pin = 25;
 const int zone4Pin = 26;
-int zone1Val;
-int zone2Val;
-int zone3Val;
-int zone4Val;
+int zoneVal[4];
 
 // temp sensors
 OneWire oneWire(13); // GPIO13 for all temp sensor data pins
 DallasTemperature sensors(&oneWire);
 int totalTempSens;
-float tempC;
 
 // pump CTs
 const int boilerPin = A0; // GPIO36
@@ -68,6 +65,7 @@ void setup()
 	// temp sensors
 	sensors.begin();
 	totalTempSens = sensors.getDeviceCount();
+	int tempVal[totalTempSens];
 
 	// pump CTs
 	pinMode(boilerPin, INPUT);
@@ -82,7 +80,7 @@ void setup()
 	lcd.print("Initializing...");
 
 	// network
-	Serial.printf("Connecting to %s ", ssid);
+	Serial.printf("Connecting to %s\r\n", ssid);
 	WiFi.begin(ssid, password);
 	while (WiFi.status() != WL_CONNECTED) {
 		delay(500);
@@ -99,32 +97,21 @@ void loop()
 {
 	// temp sensors
 	sensors.requestTemperatures();
-	for (int i = 0;  i < totalTempSens; i++) {
-		Serial.print("Temp Sensor ");
-		Serial.print(i+1);
-		Serial.print(" : ");
-		Serial.print(DallasTemperature::toFahrenheit(sensors.getTempCByIndex(i)));
+	for (byte i = 0;  i < totalTempSens; i++) {
+		tempVal[i]=DallasTemperature::toFahrenheit(sensors.getTempCByIndex(i));
+		Serial.printf("Temp Sensor %i : %i", i+1, tempVal[i]);
 		Serial.print((char)176);
 		Serial.println("F");
 	}
 
 	// zone valve optocoupler
-	zone1Val = digitalRead(zone1Pin);
-	String result = zone1Val = 1 ? "Open" : "Closed";
-	Serial.print("Zone 1 is ");
-	Serial.println(result);
-	zone2Val = digitalRead(zone2Pin);
-	String result = zone2Val = 1 ? "Open" : "Closed";
-	Serial.print("Zone 2 is ");
-	Serial.println(result);
-	zone3Val = digitalRead(zone3Pin);
-	String result = zone3Val = 1 ? "Open" : "Closed";
-	Serial.print("Zone 3 is ");
-	Serial.println(result);
-	zone4Val = digitalRead(zone4Pin);
-	String result = zone4Val = 1 ? "Open" : "Closed";
-	Serial.print("Zone 4 is ");
-	Serial.println(result);
+	zoneVal[0] = digitalRead(zone1Pin);
+	zoneVal[1] = digitalRead(zone2Pin);
+	zoneVal[2] = digitalRead(zone3Pin);
+	zoneVal[3] = digitalRead(zone4Pin);
+	for (byte i = 0; i < 4; i++) {
+		Serial.printf("Zone %s is %s\r\n", i+1, zoneVal[i])
+	}
 
 	// pump CTs
 	boilerVal = readCurrentVal(boilerPin);
@@ -132,12 +119,7 @@ void loop()
 	dhwVal = readCurrentVal(chwPin);
 
 	// upload data
-	HTTPClient http;
-	http.begin(endpoint);
-	http.addHeader("Content-Type", "application/json");
-	String message="{\"temp1\":" + ;
-	message
-	int httpResponseCode = http.POST(message);
+	postDataToServer();
 	
 	// loop delay 5s
 	delay(5000);
@@ -158,4 +140,27 @@ void readCurrentVal( char* x ) {
 	voltageVirtualValue = (voltageVirtualValue / 1024 * 5 ) / 2;
 	CTVal = voltageVirtualValue * 10; //10A CTs
 	return CTVal;
+}
+void postDataToServer() {
+	Serial.println("Posting JSON data to server...");
+	HTTPClient http;
+
+	http.begin(endpoint);
+	http.addHeader("Content-Type", "application/json");
+
+	StaticJsonDocument<200> message;
+	for (byte i = 0; i < 4; i++) {
+		message["zone"][i] = zoneVal[i];
+	}
+	message["boiler"] = boilerVal;
+	message["circ"] = circVal;
+	message["dhw"] = dhwVal;
+	for (byte i = 0;  i < totalTempSens; i++) {
+		message["temp"][i] = tempVal[i];
+	}
+
+	String requestBody;
+	serializeJson(message, requestBody);
+
+	int httpResponseCode = http.POST(requestBody);
 }
