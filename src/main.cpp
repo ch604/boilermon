@@ -163,4 +163,11 @@ void postDataToServer() {
 	serializeJson(message, requestBody);
 
 	int httpResponseCode = http.POST(requestBody);
+	if(httpResponseCode>0){
+		String response = http.getString();
+		Serial.println(httpResponseCode);
+		Serial.println(response);
+	} else {
+		Serial.printf("Error occurred while sending HTTP POST: %s\r\n", httpClient.errorToString(statusCode).c_str());
+	}
 }
