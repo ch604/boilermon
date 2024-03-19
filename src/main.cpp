@@ -7,8 +7,9 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
-// wifi
+// network
 #include <WiFi.h>
+#include <HTTPClient.h>
 
 // time
 #include "time.h"
@@ -27,7 +28,8 @@ int zone4Val;
 // temp sensors
 OneWire oneWire(13); // GPIO13 for all temp sensor data pins
 DallasTemperature sensors(&oneWire);
-int total_tempsens;
+int totalTempSens;
+float tempC;
 
 // pump CTs
 const int boilerPin = A0; // GPIO36
@@ -41,9 +43,10 @@ float dhwVal;
 // screen
 LiquidCrystal_I2C lcd(0x27, 16, 2); // I2C address 0x27, 16x2 display
 
-// wifi
+// network
 const char* ssid = "YOUR_SSID";
 const char* password = "YOUR_PASS";
+const char* endpoint = "YOUR_POST_ENDPOINT";
 
 // time
 const char* ntpServer = "pool.ntp.org";
@@ -64,7 +67,7 @@ void setup()
 
 	// temp sensors
 	sensors.begin();
-	total_tempsens = sensors.getDeviceCount();
+	totalTempSens = sensors.getDeviceCount();
 
 	// pump CTs
 	pinMode(boilerPin, INPUT);
@@ -78,7 +81,7 @@ void setup()
 	lcd.setCursor(0,0);
 	lcd.print("Initializing...");
 
-	// wifi
+	// network
 	Serial.printf("Connecting to %s ", ssid);
 	WiFi.begin(ssid, password);
 	while (WiFi.status() != WL_CONNECTED) {
@@ -96,20 +99,48 @@ void loop()
 {
 	// temp sensors
 	sensors.requestTemperatures();
+	for (int i = 0;  i < totalTempSens; i++) {
+		Serial.print("Temp Sensor ");
+		Serial.print(i+1);
+		Serial.print(" : ");
+		Serial.print(DallasTemperature::toFahrenheit(sensors.getTempCByIndex(i)));
+		Serial.print((char)176);
+		Serial.println("F");
+	}
 
 	// zone valve optocoupler
 	zone1Val = digitalRead(zone1Pin);
+	String result = zone1Val = 1 ? "Open" : "Closed";
+	Serial.print("Zone 1 is ");
+	Serial.println(result);
 	zone2Val = digitalRead(zone2Pin);
+	String result = zone2Val = 1 ? "Open" : "Closed";
+	Serial.print("Zone 2 is ");
+	Serial.println(result);
 	zone3Val = digitalRead(zone3Pin);
+	String result = zone3Val = 1 ? "Open" : "Closed";
+	Serial.print("Zone 3 is ");
+	Serial.println(result);
 	zone4Val = digitalRead(zone4Pin);
+	String result = zone4Val = 1 ? "Open" : "Closed";
+	Serial.print("Zone 4 is ");
+	Serial.println(result);
 
 	// pump CTs
 	boilerVal = readCurrentVal(boilerPin);
 	circVal = readCurrentVal(circPin);
 	dhwVal = readCurrentVal(chwPin);
 
-	// loop delay
-	delay(1000);
+	// upload data
+	HTTPClient http;
+	http.begin(endpoint);
+	http.addHeader("Content-Type", "application/json");
+	String message="{\"temp1\":" + ;
+	message
+	int httpResponseCode = http.POST(message);
+	
+	// loop delay 5s
+	delay(5000);
 }
 
 // FUNCTIONS //
