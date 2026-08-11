@@ -6,7 +6,7 @@ esphome:
   friendly_name: Boiler Monitor
 
 esp32:
-  variant: esp32s2
+  variant: ESP32
   framework:
     type: esp-idf
 
@@ -14,7 +14,7 @@ logger:
 
 api:
   encryption:
-    key: !secret boilermon__api_key
+    key: !secret boilermon__api_password
 
 ota:
   - platform: esphome
@@ -23,11 +23,6 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-  ap:
-    ssid: boilermon Fallback Hotspot
-    password: !secret boilermon__ap_password
-
-captive_portal:
 
 mdns:
 
@@ -39,66 +34,192 @@ one_wire:
     pin: GPIO13
 
 i2c:
-  - scl: GPIO9
-    sda: GPIO8
-    
+  - scl: GPIO22
+    sda: GPIO21
+
 sensor:
   - platform: dallas_temp
     id: boiler_inlet
-    icon: "mdi:thermometer-low"
+    name: "Boiler Inlet Temperature"
+    icon: "mdi:format-header-decrease"
   - platform: dallas_temp
     id: boiler_outlet
-    icon: "mdi:thermometer-high"
+    name: "Boiler Outlet Temperature"
+    icon: "mdi:format-header-increase"
   - platform: dallas_temp
     id: boiler_exhaust
+    name: "Boiler Exhaust Temperature"
     icon: "mdi:location-exit"
   - platform: dallas_temp
     id: dhw_tank
+    name: "Domestic Hot Water Tank Temperature"
     icon: "mdi:water-thermometer"
   - platform: dallas_temp
     id: heating_loop
+    name: "Heating Loop Temperature"
     icon: "mdi:heating-coil"
-  - platform: dallas_temp
+
+  - platform: aht10
+    humidity:
+      id: ambient_humidity
+      name: "Boiler Room Humidity"
+      icon: "mdi:water-percent"
+    temperature:
+      id: ambient_temperature
+      name: "Boiler Room Temperature"
+      icon: "mdi:thermometer-auto"
+    variant: AHT20
     id: ambient
-    icon: "mdi:thermometer-auto"
 
   - platform: adc
-    pin: GPIO1
-    id: boiler_pump
-    icon: "mdi:water-boiler"
+    pin: GPIO36
+    id: boiler_pump_adc
+    accuracy_decimals: 4
+    internal: true
+    attenuation: 12db
+    samples: 64
+
   - platform: adc
-    pin: GPIO2
-    id: circ_pump
-    icon: "mdi:restart"
+    pin: GPIO39
+    id: circ_pump_adc
+    accuracy_decimals: 4
+    internal: true
+    attenuation: 12db
+    samples: 64
+
   - platform: adc
-    pin: GPIO3
-    id: dhw_pump
-    icon: "mdi:water-pump"
+    pin: GPIO34
+    id: dhw_pump_adc
+    accuracy_decimals: 4
+    internal: true
+    attenuation: 12db
+    samples: 64
+
+  - platform: ct_clamp
+    sensor: boiler_pump_adc
+    id: boiler_pump_current
+    name: "Boiler Pump Current"
+    entity_category: diagnostic
+    update_interval: 5s
+    accuracy_decimals: 3
+    filters:
+      - calibrate_linear:
+          datapoints:
+          - 0.0032 -> 0.0
+          - 0.0100 -> 0.138
+      - lambda: |-
+          // ignore readings below .1A
+          if (x > 0.1){ 
+            return x;
+          } else {
+            return 0.0;
+          }
+
+  - platform: ct_clamp
+    sensor: circ_pump_adc
+    id: circ_pump_current
+    name: "Circulator Pump Current"
+    entity_category: diagnostic
+    update_interval: 5s
+    accuracy_decimals: 3
+    filters:
+      - calibrate_linear:
+          datapoints:
+          - 0.0032 -> 0.0
+          - 0.0100 -> 0.138
+      - lambda: |-
+          // ignore readings below .1A
+          if (x > 0.1){ 
+            return x;
+          } else {
+            return 0.0;
+          }
+
+  - platform: ct_clamp
+    sensor: dhw_pump_adc
+    id: dhw_pump_current
+    name: "DHW Pump Current"
+    entity_category: diagnostic
+    update_interval: 5s
+    accuracy_decimals: 3
+    filters:
+      - calibrate_linear:
+          datapoints:
+          - 0.0032 -> 0.0
+          - 0.0100 -> 0.138
+      - lambda: |-
+          // ignore readings below .1A
+          if (x > 0.1){ 
+            return x;
+          } else {
+            return 0.0;
+          }
 
   - platform: wifi_signal
-    name: "RSSI"
+    name: RSSI
+    id: rssi
     icon: "mdi:wifi-arrow-up-down"
 
   - platform: uptime
-    name: "Uptime"
+    name: Uptime
+    id: boilermon_uptime
 
 binary_sensor:
   - platform: gpio
-    pin: GPIO39
+    pin: GPIO25
     id: zone_1
-    icon: "mdi:format-header1"
+    name: "Unit 1 Thermostat"
+    icon: "mdi:numeric1-circle"
+    device_class: heat
   - platform: gpio
-    pin: GPIO40
+    pin: GPIO26
     id: zone_2
-    icon: "mdi:format-header2"
+    name: "Unit 2 Thermostat"
+    icon: "mdi:numeric2-circle"
+    device_class: heat
   - platform: gpio
-    pin: GPIO41
+    pin: GPIO27
     id: zone_3
-    icon: "mdi:format-header3"
+    name: "Unit 3 Thermostat"
+    icon: "mdi:numeric3-circle"
+    device_class: heat
   - platform: gpio
-    pin: GPIO42
+    pin: GPIO14
     id: zone_4
-    icon: "mdi:format-header4"
+    name: "Unit 4 Thermostat"
+    icon: "mdi:numeric4-circle"
+    device_class: heat
+
+  - platform: template
+    name: "Boiler Pump State"
+    device_class: running
+    icon: "mdi:water-boiler"
+    lambda: |-
+      static bool last = false;
+      float a = id(boiler_pump_adc).state;
+      if (a > 1.1) last = true;
+      if (a < 0.9) last = false;
+      return last;
+  - platform: template
+    name: "Circ Pump State"
+    device_class: running
+    icon: "mdi:restart"
+    lambda: |-
+      static bool last = false;
+      float a = id(circ_pump_adc).state;
+      if (a > 1.1) last = true;
+      if (a < 0.9) last = false;
+      return last;
+  - platform: template
+    name: "DHW Pump State"
+    device_class: running
+    icon: "mdi:water-pump"
+    lambda: |-
+      static bool last = false;
+      float a = id(dhw_pump_adc).state;
+      if (a > 1.1) last = true;
+      if (a < 0.9) last = false;
+      return last;
 
 display:
   - platform: lcd_pcf8574
@@ -107,6 +228,7 @@ display:
 
 button:
   - platform: restart
-    name: "Restart"
-    entity_category: "diagnostic"
+    name: Restart
+    id: restart_boilermon
+    entity_category: diagnostic
     icon: "mdi:restart-alert"
