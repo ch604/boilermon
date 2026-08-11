@@ -2,7 +2,7 @@
 # Definition: definitions/boards/generic-esp32s2/manifest.yaml
 
 esphome:
-  name: boilermon
+  name: boiler-monitor
   friendly_name: Boiler Monitor
 
 esp32:
@@ -14,8 +14,7 @@ logger:
 
 api:
   encryption:
-    key: !secret boilermon__api_password
-
+    key: !secret boilermon__encryption_key
 ota:
   - platform: esphome
     password: !secret boilermon__ota_password
@@ -38,39 +37,6 @@ i2c:
     sda: GPIO21
 
 sensor:
-  - platform: dallas_temp
-    id: boiler_inlet
-    name: "Boiler Inlet Temperature"
-    icon: "mdi:format-header-decrease"
-  - platform: dallas_temp
-    id: boiler_outlet
-    name: "Boiler Outlet Temperature"
-    icon: "mdi:format-header-increase"
-  - platform: dallas_temp
-    id: boiler_exhaust
-    name: "Boiler Exhaust Temperature"
-    icon: "mdi:location-exit"
-  - platform: dallas_temp
-    id: dhw_tank
-    name: "Domestic Hot Water Tank Temperature"
-    icon: "mdi:water-thermometer"
-  - platform: dallas_temp
-    id: heating_loop
-    name: "Heating Loop Temperature"
-    icon: "mdi:heating-coil"
-
-  - platform: aht10
-    humidity:
-      id: ambient_humidity
-      name: "Boiler Room Humidity"
-      icon: "mdi:water-percent"
-    temperature:
-      id: ambient_temperature
-      name: "Boiler Room Temperature"
-      icon: "mdi:thermometer-auto"
-    variant: AHT20
-    id: ambient
-
   - platform: adc
     pin: GPIO36
     id: boiler_pump_adc
@@ -155,80 +121,211 @@ sensor:
             return 0.0;
           }
 
-  - platform: wifi_signal
-    name: RSSI
-    id: rssi
-    icon: "mdi:wifi-arrow-up-down"
-
   - platform: uptime
-    name: Uptime
+    name: "Uptime"
     id: boilermon_uptime
 
-binary_sensor:
-  - platform: gpio
-    pin: GPIO25
-    id: zone_1
-    name: "Unit 1 Thermostat"
-    icon: "mdi:numeric1-circle"
-    device_class: heat
-  - platform: gpio
-    pin: GPIO26
-    id: zone_2
-    name: "Unit 2 Thermostat"
-    icon: "mdi:numeric2-circle"
-    device_class: heat
-  - platform: gpio
-    pin: GPIO27
-    id: zone_3
-    name: "Unit 3 Thermostat"
-    icon: "mdi:numeric3-circle"
-    device_class: heat
-  - platform: gpio
-    pin: GPIO14
-    id: zone_4
-    name: "Unit 4 Thermostat"
-    icon: "mdi:numeric4-circle"
-    device_class: heat
+  - platform: wifi_signal
+    name: "RSSI"
+    icon: "mdi:wifi-arrow-up-down"
 
+  - platform: dallas_temp
+    name: "Boiler Air Intake"
+    index: 0
+    update_interval: 5s
+
+  - platform: dallas_temp
+    name: "Boiler Inlet"
+    index: 1
+    update_interval: 5s
+
+  - platform: dallas_temp
+    name: "Boiler Outlet"
+    index: 2
+    update_interval: 5s
+
+  - platform: dallas_temp
+    name: "DHW Tank"
+    index: 3
+    update_interval: 5s
+
+  - platform: dallas_temp
+    name: "Boiler Exhaust"
+    index: 4
+    update_interval: 5s
+
+  - platform: aht10
+    update_interval: 30s
+    variant: AHT20
+    humidity:
+      name: Ambient Humidity
+      icon: "mdi:water-percent"
+    temperature:
+      name: Ambient Temperature
+      icon: "mdi:home-thermometer"
+
+binary_sensor:
   - platform: template
     name: "Boiler Pump State"
     device_class: running
     icon: "mdi:water-boiler"
     lambda: |-
       static bool last = false;
-      float a = id(boiler_pump_adc).state;
-      if (a > 1.1) last = true;
-      if (a < 0.9) last = false;
+      float a = id(boiler_pump_current).state;
+      if (a > 0.5) last = true;
+      if (a < 0.3) last = false;
       return last;
+
   - platform: template
-    name: "Circ Pump State"
+    name: "Circulator Pump State"
     device_class: running
     icon: "mdi:restart"
     lambda: |-
       static bool last = false;
-      float a = id(circ_pump_adc).state;
-      if (a > 1.1) last = true;
-      if (a < 0.9) last = false;
+      float a = id(circ_pump_current).state;
+      if (a > 0.5) last = true;
+      if (a < 0.3) last = false;
       return last;
+
   - platform: template
     name: "DHW Pump State"
     device_class: running
     icon: "mdi:water-pump"
     lambda: |-
       static bool last = false;
-      float a = id(dhw_pump_adc).state;
-      if (a > 1.1) last = true;
-      if (a < 0.9) last = false;
+      float a = id(dhw_pump_current).state;
+      if (a > 0.5) last = true;
+      if (a < 0.3) last = false;
       return last;
 
-display:
-  - platform: lcd_pcf8574
-    dimensions: 16x2
-    id: display_lcd_pcf8574_16x2
+  - platform: gpio
+    name: Zone 1 Thermostat
+    pin:
+      number: GPIO16
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    icon: "mdi:numeric1-circle"
+    device_class: heat
+
+  - platform: gpio
+    name: Zone 2 Thermostat
+    pin:
+      number: GPIO18
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    icon: "mdi:numeric2-circle"
+    device_class: heat
+
+  - platform: gpio
+    name: Zone 3 Thermostat
+    pin:
+      number: GPIO19
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    icon: "mdi:numeric3-circle"
+    device_class: heat
+
+  - platform: gpio
+    name: Zone 4 Thermostat
+    pin:
+      number: GPIO17
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    icon: "mdi:numeric4-circle"
+    device_class: heat
+
+text_sensor:
+  - platform: template
+    name: "Boiler Pump Speed"
+    update_interval: 5s
+    icon: "mdi:water-boiler"
+    entity_category: diagnostic
+    lambda: |-
+        float a = id(boiler_pump_current).state;
+        static std::string last_value = "";
+        std::string new_value;
+
+        if (a > .71) {
+          new_value = "High";
+        } else if (a > .62) {
+          new_value = "Medium";
+        } else if (a > .51) {
+          new_value = "Low";
+        } else {
+          new_value = "Off";
+        }
+
+        if (new_value != last_value) {
+          last_value = new_value;
+          return new_value;
+        } else {
+          return {};
+        }
+
+  - platform: template
+    name: "Circulator Pump Speed"
+    update_interval: 5s
+    icon: "mdi:restart"
+    entity_category: diagnostic
+    lambda: |-
+        float a = id(circ_pump_current).state;
+        static std::string last_value = "";
+        std::string new_value;
+
+        if (a > .71) {
+          new_value = "High";
+        } else if (a > .62) {
+          new_value = "Medium";
+        } else if (a > .51) {
+          new_value = "Low";
+        } else {
+          new_value = "Off";
+        }
+
+        if (new_value != last_value) {
+          last_value = new_value;
+          return new_value;
+        } else {
+          return {};
+        }
+
+  - platform: template
+    name: "DHW Pump Speed"
+    update_interval: 5s
+    icon: "mdi:water-pump"
+    entity_category: diagnostic
+    lambda: |-
+        float a = id(dhw_pump_current).state;
+        static std::string last_value = "";
+        std::string new_value;
+
+        if (a > .71) {
+          new_value = "High";
+        } else if (a > .62) {
+          new_value = "Medium";
+        } else if (a > .51) {
+          new_value = "Low";
+        } else {
+          new_value = "Off";
+        }
+
+        if (new_value != last_value) {
+          last_value = new_value;
+          return new_value;
+        } else {
+          return {};
+        }
 
 button:
   - platform: restart
-    name: Restart
-    id: restart_boilermon
+    name: "Restart"
     entity_category: diagnostic
     icon: "mdi:restart-alert"
